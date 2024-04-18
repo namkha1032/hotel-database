@@ -1,0 +1,13 @@
+[
+    {
+        "bookingid": "12345",
+        "branchid": "br01",
+        "roomnumber": "101",
+        "foodconsumed": [
+            {
+                "foodtypeid": "123",
+                "amount": 1
+            }
+        ]
+    }
+]

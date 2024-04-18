@@ -1,0 +1,77 @@
+::-webkit-scrollbar-track {
+  /* -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3); */
+  border-radius: 10px;
+  /* background-color: #F5F5F5; */
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  /* background-color: #F5F5F5; */
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  -webkit-box-shadow: inset 0 0 1px rgba(0, 0, 0, .3);
+  background-color: rgb(200, 200, 200);
+}
+
+#cardSelectedDoc::-webkit-scrollbar {
+  display: none;
+}
+
+.mySkele {
+  height: 100% !important;
+}
+
+
+body {
+  margin: 0;
+  /* overflow: hidden; */
+}
+
+html,
+body,
+#root {
+  height: 100%
+}
+
+#root>.ant-layout {
+  height: 100%
+}
+
+.ant-picker-panels>*:first-child button.ant-picker-header-next-btn {
+  visibility: visible !important;
+}
+
+.ant-picker-panels>*:first-child button.ant-picker-header-super-next-btn {
+  visibility: visible !important;
+}
+
+.ant-picker-panels>*:last-child {
+  display: none;
+}
+
+.ant-picker-panel-container,
+.ant-picker-footer {
+  width: 280px !important;
+}
+
+.ant-picker-footer-extra>div {
+  flex-wrap: wrap !important;
+}
+
+.fc-scrollgrid {
+  border-radius: 8px;
+}
+
+.fc-scrollgrid-section-header>th {
+  border-radius: 8px 8px 0px 0px;
+}
+
+.fc-scrollgrid-section-body>td {
+  border-radius: 0px 0px 8px 8px;
+}
+
+/* .myChart>div>div {
+  height: fit-content !important;
+} */
