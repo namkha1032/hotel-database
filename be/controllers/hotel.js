@@ -1,5 +1,5 @@
 const hotelRouter = require('express').Router()
-const connection = require('../mysql_connect')
+// const connection = require('../mysql_connect')
 const client = require('../connection_pg')
 hotelRouter.get("/room", async (request, response) => {
     let query = ``;
