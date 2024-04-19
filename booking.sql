@@ -1,3 +1,5 @@
+alter table booking_room disable trigger trigger_check_valid_booking_room;
+
 INSERT INTO booking (BookingDate, GuestCount, CheckIn, CheckOut, CustomerID) VALUES
 ('2023-03-06','18','2023-03-19','2023-03-19','CS000001'),
 ('2023-06-02','3','2023-06-08','2023-06-11','CS000001'),

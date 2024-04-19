@@ -367,7 +367,7 @@ hotelRouter.get("/branch", async (request, response) => {
     try {
         await client.query("BEGIN;")
         let result = await client.query(`SELECT branch.*, jsonb_agg(jsonb_build_object(
-            'image', branch_image.image)) FROM branch natural join branch_image group by branch.branchid;`)
+            'image', branch_image.image)) as images FROM branch natural join branch_image group by branch.branchid;`)
         await client.query("COMMIT;")
         response.send(result)
     }

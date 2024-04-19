@@ -154,25 +154,7 @@ CREATE TABLE foodconsumed (
     FOREIGN KEY (FoodTypeID) REFERENCES foodtype (FoodTypeID) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- /////////////////////////////////nháp//////////////////////////////////////////
-CREATE OR REPLACE FUNCTION trigger_func() RETURNS TRIGGER AS
-    $body$
-        DECLARE
-            message_error varchar;
-        BEGIN
-            IF NEW.Province = 'usa' THEN
-                RAISE EXCEPTION 'Cannot insert % %',NEW.Province, NEW.BranchID;
-            ELSE
-                RETURN NEW;
-            END IF;
-        END;
-    $body$
-    LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER check_branch BEFORE INSERT ON branch
-FOR EACH ROW
-EXECUTE FUNCTION trigger_func();
--- /////////////////////////////////hết nháp//////////////////////////////////////////
+-- /////////////////////////////////trigger//////////////////////////////////////////
 
 CREATE OR REPLACE FUNCTION check_valid_booking_room()
     RETURNS TRIGGER AS
@@ -245,40 +227,7 @@ CREATE OR REPLACE TRIGGER trigger_calculate_food_cost
     EXECUTE FUNCTION calculate_food_cost();
 
 
-CREATE OR REPLACE FUNCTION get_vacant_rooms(
-        InputBranch varchar,
-        InputGuest integer,
-        InputRoom integer,
-        InputCheckIn timestamp,
-        InputCheckOut timestamp,
-        NoLimit boolean
-    ) RETURNS TABLE (
-        roomtypeid integer,
-        branchid varchar,
-        roomnumber varchar,
-        roomname varchar,
-        area integer,
-        guestnum integer,
-        singlebednum integer,
-        doublebednum integer,
-        description text
-    ) AS
-    $body$
-        DECLARE
-            CalculatedGuestNum integer DEFAULT CEIL(InputGuest/InputRoom);
-        BEGIN
-            RETURN QUERY
-            SELECT * FROM 
-            (SELECT * FROM room NATURAL JOIN roomtype WHERE roomtype.GuestNum = CalculatedGuestNum OR NoLimit) AS r0
-            WHERE r0.BranchID = InputBranch
-            AND NOT EXISTS
-            (SELECT * FROM booking NATURAL JOIN booking_room
-            WHERE (r0.RoomNumber = booking_room.RoomNumber AND r0.BranchID = booking_room.BranchID) 
-            AND ((InputCheckIn <= booking.CheckIn AND InputCheckOut >= booking.CheckIn)
-            OR (InputCheckIn >= booking.CheckIn AND InputCheckIn <= booking.CheckOut)));
-        END;
-    $body$
-    LANGUAGE plpgsql;
+-- /////////////////////////////////function/procedure//////////////////////////////////////////
 
 CREATE OR REPLACE FUNCTION get_vacant_roomtypes(
         InputBranch varchar,
@@ -510,62 +459,62 @@ CREATE OR REPLACE FUNCTION get_rooms_with_bookings(
     LANGUAGE 'plpgsql';
 
 CREATE OR REPLACE FUNCTION get_bookings(
-    checkinnull varchar,
-    checkoutnull varchar
-) RETURNS TABLE (
-    CustomerID VARCHAR,
-    BookingID VARCHAR,
-    BookingDate TIMESTAMP,
-    GuestCount INTEGER,
-    CheckIn TIMESTAMP,
-    CheckOut TIMESTAMP,
-    ActualCheckIn TIMESTAMP,
-    ActualCheckOut TIMESTAMP,
-    Status INTEGER,
-    RentalCost INTEGER,
-    FoodCost INTEGER,
-    TotalCost INTEGER,
-    booking_rooms jsonb,
-    CitizenID VARCHAR,
-    FullName VARCHAR,
-    DateOfBirth DATE,
-    Phone VARCHAR,
-    Email VARCHAR,
-    Username VARCHAR,
-    Password VARCHAR
-) AS 
-    $body$
-    BEGIN
-        -- SELECT * from (SELECT booking.*, booking.rentalcost + booking.foodcost as totalcost, jsonb_agg(jsonb_build_object(
-        --         ''branchid'', booking_room.branchid,
-        --         ''roomnumber'', booking_room.roomnumber
-        --     ))
-        -- FROM booking NATURAL JOIN booking_room GROUP BY booking.bookingid) as br NATURAL JOIN customer
-        -- WHERE br.ActualCheckIn IS %s AND br.ActualCheckOut IS %s
-        -- ORDER BY br.bookingid DESC;
-        RETURN QUERY
-        EXECUTE format('SELECT * from (
-            SELECT booking.*, booking.rentalcost + booking.foodcost as totalcost, 
-                jsonb_agg(jsonb_build_object(
-                    ''branchid'', booking_room.branchid,
-                    ''roomnumber'', booking_room.roomnumber,
-                    ''foodconsumed'', (SELECT jsonb_agg(jsonb_build_object(
-                        ''foodtypeid'', food_join.foodtypeid,
-                        ''foodname'', food_join.foodname,
-                        ''foodprice'', food_join.foodprice,
-                        ''amount'', food_join.amount
-                    )) FROM (foodconsumed natural join foodtype) as food_join
-                    WHERE food_join.branchid = booking_room.branchid 
-                    AND food_join.roomnumber = booking_room.roomnumber
-                    AND food_join.bookingid = booking_room.bookingid
-                    GROUP BY booking_room.bookingid, booking_room.branchid, booking_room.roomnumber)
-            ))
-        FROM booking NATURAL JOIN booking_room GROUP BY booking.bookingid) as br NATURAL JOIN customer
-        WHERE br.ActualCheckIn IS %s AND br.ActualCheckOut IS %s
-        ORDER BY br.bookingid DESC;', checkinnull, checkoutnull);
-    END;
-    $body$
-    LANGUAGE 'plpgsql';
+        checkinnull varchar,
+        checkoutnull varchar
+    ) RETURNS TABLE (
+        CustomerID VARCHAR,
+        BookingID VARCHAR,
+        BookingDate TIMESTAMP,
+        GuestCount INTEGER,
+        CheckIn TIMESTAMP,
+        CheckOut TIMESTAMP,
+        ActualCheckIn TIMESTAMP,
+        ActualCheckOut TIMESTAMP,
+        Status INTEGER,
+        RentalCost INTEGER,
+        FoodCost INTEGER,
+        TotalCost INTEGER,
+        booking_rooms jsonb,
+        CitizenID VARCHAR,
+        FullName VARCHAR,
+        DateOfBirth DATE,
+        Phone VARCHAR,
+        Email VARCHAR,
+        Username VARCHAR,
+        Password VARCHAR
+    ) AS 
+        $body$
+        BEGIN
+            -- SELECT * from (SELECT booking.*, booking.rentalcost + booking.foodcost as totalcost, jsonb_agg(jsonb_build_object(
+            --         ''branchid'', booking_room.branchid,
+            --         ''roomnumber'', booking_room.roomnumber
+            --     ))
+            -- FROM booking NATURAL JOIN booking_room GROUP BY booking.bookingid) as br NATURAL JOIN customer
+            -- WHERE br.ActualCheckIn IS %s AND br.ActualCheckOut IS %s
+            -- ORDER BY br.bookingid DESC;
+            RETURN QUERY
+            EXECUTE format('SELECT * from (
+                SELECT booking.*, booking.rentalcost + booking.foodcost as totalcost, 
+                    jsonb_agg(jsonb_build_object(
+                        ''branchid'', booking_room.branchid,
+                        ''roomnumber'', booking_room.roomnumber,
+                        ''foodconsumed'', (SELECT jsonb_agg(jsonb_build_object(
+                            ''foodtypeid'', food_join.foodtypeid,
+                            ''foodname'', food_join.foodname,
+                            ''foodprice'', food_join.foodprice,
+                            ''amount'', food_join.amount
+                        )) FROM (foodconsumed natural join foodtype) as food_join
+                        WHERE food_join.branchid = booking_room.branchid 
+                        AND food_join.roomnumber = booking_room.roomnumber
+                        AND food_join.bookingid = booking_room.bookingid
+                        GROUP BY booking_room.bookingid, booking_room.branchid, booking_room.roomnumber)
+                ))
+            FROM booking NATURAL JOIN booking_room GROUP BY booking.bookingid) as br NATURAL JOIN customer
+            WHERE br.ActualCheckIn IS %s AND br.ActualCheckOut IS %s
+            ORDER BY br.bookingid DESC;', checkinnull, checkoutnull);
+        END;
+        $body$
+        LANGUAGE 'plpgsql';
 
 CREATE OR REPLACE PROCEDURE create_booking(
         inputguestcount integer,
@@ -585,23 +534,6 @@ CREATE OR REPLACE PROCEDURE create_booking(
                 loop
                     insert into booking_room (BookingID, BranchID, RoomNumber) 
                     values (newbookingid, room_rec.branchid, room_rec.roomnumber);
-                end loop;
-        END;
-    $body$
-    LANGUAGE 'plpgsql';
-
-CREATE OR REPLACE PROCEDURE check_out(
-        inputbookingid varchar,
-        inputfoodamount foodconsumed[]
-    ) AS
-    $body$
-        DECLARE
-            food_rec record;
-        BEGIN
-            for food_rec in select * from unnest(inputfoodamount)
-                loop
-                    insert into foodconsumed (BookingID, BranchID, RoomNumber, FoodTypeID, Amount) 
-                    values (inputbookingid, food_rec.branchid, food_rec.roomnumber, food_rec.foodtypeid, food_rec.amount);
                 end loop;
         END;
     $body$
@@ -722,5 +654,3 @@ CREATE OR REPLACE PROCEDURE checkout(inputbookingid varchar, json_data json)AS
 -- $$
 -- LANGUAGE 'plpgsql';
 
-
-alter table booking_room disable trigger trigger_check_valid_booking_room;

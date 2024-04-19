@@ -159,8 +159,8 @@ const Page_Hotel_Customer = () => {
             <Container>
                 <Carousel autoplay autoplaySpeed={3000} style={{ width: "100%" }}>
                     {chosenBranch == "BR01" ?
-                        allBranch[0]?.jsonb_agg?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)
-                        : allBranch[1]?.jsonb_agg?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)
+                        allBranch[0]?.images?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)
+                        : allBranch[1]?.images?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)
                     }
                 </Carousel>
                 <Typography.Title level={1}>Guest page - finding vacant rooms</Typography.Title>
