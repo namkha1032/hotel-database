@@ -303,17 +303,9 @@ hotelRouter.post("/createbooking", async (request, response) => {
         //     ROW(null, 'BR01', '306')::booking_room,
         //     ROW(null, 'BR01', '307')::booking_room
         // ]);
-        let insertQuery = `CALL create_booking('${request.body.guestcount}','${request.body.checkin}','${request.body.checkout}', '${request.body.customerid}', ARRAY[`
-        for (let i = 0; i < request.body.booking_rooms.length; i++) {
-            let valueQuery = `ROW(null, '${request.body.booking_rooms[i].branchid}','${request.body.booking_rooms[i].roomnumber}')::booking_room`
-            if (i == request.body.booking_rooms.length - 1) {
-                valueQuery = valueQuery.concat(`]);`)
-            }
-            else {
-                valueQuery = valueQuery.concat(`,`)
-            }
-            insertQuery = insertQuery.concat(valueQuery)
-        }
+        console.log("books", request.body.booking_rooms)
+        let insertQuery = `CALL create_booking('${request.body.guestcount}','${request.body.checkin}','${request.body.checkout}', '${request.body.customerid}', '${JSON.stringify(request.body.booking_rooms)}');`
+
         let result = await client.query(insertQuery)
         await client.query("COMMIT;")
         response.send(result)

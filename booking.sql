@@ -17075,4 +17075,4 @@ INSERT INTO foodconsumed (BookingID, BranchID, RoomNumber, FoodTypeID, Amount) V
 
 
 
-alter table booking_room enable trigger all;
+-- alter table booking_room enable trigger all;

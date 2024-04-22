@@ -155,22 +155,39 @@ CREATE TABLE foodconsumed (
 );
 
 -- /////////////////////////////////trigger//////////////////////////////////////////
-
 CREATE OR REPLACE FUNCTION check_valid_booking_room()
     RETURNS TRIGGER AS
     $body$
         DECLARE
+            InputCustomerID varchar;
             InputCheckIn timestamp;
             InputCheckOut timestamp;
+            InputProvince varchar;
+            ExistBookingID varchar DEFAULT '0';
+            ExistCheckIn timestamp;
+            ExistCheckOut timestamp;
+            ExistProvince varchar;
         BEGIN
-            SELECT booking.checkin, booking.checkout INTO InputCheckIn, InputCheckOut 
-            FROM booking NATURAL JOIN booking_room WHERE booking_room.bookingid = NEW.bookingid;
-            IF EXISTS 
-                (SELECT * FROM booking NATURAL JOIN booking_room
-                WHERE (NEW.RoomNumber = booking_room.RoomNumber AND NEW.BranchID = booking_room.BranchID) 
+            SELECT booking.customerid, booking.checkin, booking.checkout INTO InputCustomerID, InputCheckIn, InputCheckOut 
+            FROM booking NATURAL JOIN booking_room WHERE booking_room.bookingid = NEW.bookingid GROUP BY booking.bookingid;
+            SELECT branch.province into InputProvince from branch where branchid = new.branchid;
+
+            SELECT booking.bookingid, br.province, booking.checkin, booking.checkout 
+            into ExistBookingID, ExistProvince, ExistCheckIn, ExistCheckOut 
+            FROM booking NATURAL JOIN (booking_room natural join branch) as br
+                WHERE booking.customerid = InputCustomerID AND NEW.BranchID <> br.BranchID
                 AND ((InputCheckIn <= booking.CheckIn AND InputCheckOut >= booking.CheckIn)
-                OR (InputCheckIn >= booking.CheckIn AND InputCheckIn <= booking.CheckOut))) THEN
-                RAISE EXCEPTION 'Branch % Room % is already occupied from % to %', NEW.branchid, NEW.roomnumber, InputCheckIn, InputCheckOut;
+                OR (InputCheckIn >= booking.CheckIn AND InputCheckIn <= booking.CheckOut));
+
+            IF ExistBookingID <> '0' THEN
+                RAISE EXCEPTION 'Cannot add booking for you (%):
+                EXISTS (%, %, %, %)
+                NEWLY  (%, %, %, %)', 
+                InputCustomerID, 
+                ExistBookingID, ExistProvince, DATE(ExistCheckIn), DATE(ExistCheckOut), 
+                NEW.bookingid, InputProvince, DATE(InputCheckIn), DATE(InputCheckOut);
+                -- RAISE EXCEPTION 'Cannot add booking % in branch % because you (%) already booked in branch % from % to % in booking %', 
+                -- new.bookingid, ExistProvince, InputCustomerID,  InputProvince, InputCheckIn, InputCheckOut, ExistBookingID;
             ELSE
                 RETURN NEW;
             END IF;
@@ -181,6 +198,33 @@ CREATE OR REPLACE TRIGGER trigger_check_valid_booking_room
     BEFORE INSERT ON booking_room
     FOR EACH ROW
     EXECUTE FUNCTION check_valid_booking_room();
+
+
+-- CREATE OR REPLACE FUNCTION check_valid_booking_room()
+--     RETURNS TRIGGER AS
+--     $body$
+--         DECLARE
+--             InputCheckIn timestamp;
+--             InputCheckOut timestamp;
+--         BEGIN
+--             SELECT booking.checkin, booking.checkout INTO InputCheckIn, InputCheckOut 
+--             FROM booking NATURAL JOIN booking_room WHERE booking_room.bookingid = NEW.bookingid;
+--             IF EXISTS 
+--                 (SELECT * FROM booking NATURAL JOIN booking_room
+--                 WHERE (NEW.RoomNumber = booking_room.RoomNumber AND NEW.BranchID = booking_room.BranchID) 
+--                 AND ((InputCheckIn <= booking.CheckIn AND InputCheckOut >= booking.CheckIn)
+--                 OR (InputCheckIn >= booking.CheckIn AND InputCheckIn <= booking.CheckOut))) THEN
+--                 RAISE EXCEPTION 'Branch % Room % is already occupied from % to %', NEW.branchid, NEW.roomnumber, InputCheckIn, InputCheckOut;
+--             ELSE
+--                 RETURN NEW;
+--             END IF;
+--         END;
+--     $body$
+--     LANGUAGE plpgsql;
+-- CREATE OR REPLACE TRIGGER trigger_check_valid_booking_room
+--     BEFORE INSERT ON booking_room
+--     FOR EACH ROW
+--     EXECUTE FUNCTION check_valid_booking_room();
 
 CREATE OR REPLACE FUNCTION calculate_rental_cost()
     RETURNS TRIGGER AS
@@ -516,24 +560,52 @@ CREATE OR REPLACE FUNCTION get_bookings(
         $body$
         LANGUAGE 'plpgsql';
 
+-- CREATE OR REPLACE PROCEDURE create_booking(
+--         inputguestcount integer,
+--         inputcheckin timestamp,
+--         inputcheckout timestamp,
+--         inputcustomerid varchar,
+--         inputbookingroom booking_room[]
+--     ) AS
+--     $body$
+--         DECLARE
+--             newbookingid varchar;
+--             room_rec record;
+--         BEGIN
+--             INSERT INTO booking (GuestCount, CheckIn, CheckOut, CustomerID) VALUES
+--             (inputguestcount, inputcheckin, inputcheckout, inputcustomerid) RETURNING bookingid INTO newbookingid;
+--             for room_rec in select * from unnest(inputbookingroom)
+--                 loop
+--                     insert into booking_room (BookingID, BranchID, RoomNumber) 
+--                     values (newbookingid, room_rec.branchid, room_rec.roomnumber);
+--                 end loop;
+--         END;
+--     $body$
+--     LANGUAGE 'plpgsql';
+
+
 CREATE OR REPLACE PROCEDURE create_booking(
         inputguestcount integer,
         inputcheckin timestamp,
         inputcheckout timestamp,
         inputcustomerid varchar,
-        inputbookingroom booking_room[]
+        inputbookingroom json
     ) AS
     $body$
         DECLARE
             newbookingid varchar;
-            room_rec record;
+            room_rec json;
         BEGIN
             INSERT INTO booking (GuestCount, CheckIn, CheckOut, CustomerID) VALUES
             (inputguestcount, inputcheckin, inputcheckout, inputcustomerid) RETURNING bookingid INTO newbookingid;
-            for room_rec in select * from unnest(inputbookingroom)
+            for room_rec in select json_array_elements(inputbookingroom)
                 loop
                     insert into booking_room (BookingID, BranchID, RoomNumber) 
-                    values (newbookingid, room_rec.branchid, room_rec.roomnumber);
+                    values (
+                        newbookingid,
+                        (room_rec->>'branchid')::text,
+                        (room_rec->>'roomnumber')::text
+                    );
                 end loop;
         END;
     $body$
