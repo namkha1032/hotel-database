@@ -113,11 +113,13 @@ function generateRandomNumbers() {
 const Page_Hotel_Add_Data = () => {
     let [bookingQuery, setBookingQuery] = useState(``)
     let [bookingRoomQuery, setBookingRoomQuery] = useState(``)
+    let [bookingResultQuery, setBookingResultQuery] = useState(``)
     async function handleAddBooking() {
         let customerRaw = await axios.get(`http://localhost:3001/api/hotel/customer`)
         console.log("customerRaw: ", customerRaw)
         let newBookingString = ``;
         let newBookingRoomString = ``;
+        let newCreateBookingString = ``;
         let countFail = 0;
         for (let i = 0; i < customerRaw.data.rows.length; i++) {
             console.log(`Customer number ${i}`, customerRaw.data.rows[i])
@@ -125,10 +127,11 @@ const Page_Hotel_Add_Data = () => {
             for (let j = 0; j < randomBookingCount; j++) {
                 let checkBooking = false
                 let checkCount = 0
-                while (!checkBooking && checkCount < 10) {
+                while (!checkBooking && checkCount < 20) {
                     let { bookingDate, checkInDate, checkOutDate } = getRandomDatesInSameMonth()
                     let { guestCount, roomCount } = generateRandomNumbers()
-                    let branchID = Math.floor(Math.random() * 2) + 1 == 1 ? 'BR01' : 'BR02'
+                    let branchRandom = Math.floor(Math.random() * 4) + 1
+                    let branchID = `BR0${branchRandom}`
                     let roomTypeRaw = await axios.post(`http://localhost:3001/api/hotel/getvacant`,
                         {
                             branchID: branchID,
@@ -140,46 +143,57 @@ const Page_Hotel_Add_Data = () => {
                         })
                     // console.log("roomTypeRaw: ", roomTypeRaw)
                     if (roomTypeRaw.data[0].rows.length > 0) {
-                        newBookingString = newBookingString.concat(`('${bookingDate}','${guestCount}','${checkInDate}','${checkOutDate}','${customerRaw.data.rows[i].customerid}'),\n`)
-                        let customerID = customerRaw.data.rows[i].customerid
-                        let bookingRaw = await axios.post(`http://localhost:3001/api/hotel/addbooking`, { branchID, bookingDate, checkInDate, checkOutDate, guestCount, roomCount, customerID })
-                        let roomtypeindex = Math.floor(Math.random() * roomTypeRaw.data[0].rows.length);
-                        let roomList = roomTypeRaw.data[0].rows[roomtypeindex].vacant_rooms
-                        // console.log("roomtypeindex: ", roomtypeindex)
-                        // console.log("roomList: ", roomList)
-                        for (let k = 0; k < roomCount; k++) {
-                            let bookingRoomRaw = await axios.post(`http://localhost:3001/api/hotel/addroombooking`, {
-                                bookingID: bookingRaw.data.rows[0].bookingid,
-                                branchID: branchID,
-                                roomNumber: roomList[k].roomnumber
+                        try {
+                            let customerID = customerRaw.data.rows[i].customerid
+                            let roomtypeindex = Math.floor(Math.random() * roomTypeRaw.data[0].rows.length);
+                            let roomList = roomTypeRaw.data[0].rows[roomtypeindex].vacant_rooms
+                            // console.log("roomtypeindex: ", roomtypeindex)
+                            // console.log("roomList: ", roomList)
+                            let inputRoomList = roomList.slice(0, roomCount)
+                            let bookingResultRaw = await axios.post(`http://localhost:3001/api/hotel/createbooking`, {
+                                bookingdate: bookingDate,
+                                guestcount: guestCount,
+                                checkin: checkInDate,
+                                checkout: checkOutDate,
+                                customerid: customerID,
+                                booking_rooms: inputRoomList
                             })
-                            newBookingRoomString = newBookingRoomString.concat(`('${bookingRaw.data.rows[0].bookingid}','${branchID}','${roomList[k].roomnumber}'),\n`)
+                            newCreateBookingString = newCreateBookingString.concat(`CALL create_booking('${guestCount}', '${bookingDate}', '${checkInDate}','${checkOutDate}', '${customerID}', '${JSON.stringify(inputRoomList)}');\n`)
+                            checkBooking = true
                         }
-                        checkBooking = true
+                        catch (e) {
+                            countFail = countFail + 1;
+                            checkCount = checkCount + 1
+                            console.log("FAIL NUMBER 2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", e)
+                        }
                     }
                     else {
                         countFail = countFail + 1;
                         checkCount = checkCount + 1
-                        console.log("FAIL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                        console.log("FAIL NUMBER 1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     }
                 }
             }
         }
         console.log("countFail: ", countFail)
         // setBookingQuery(customerRaw.data.rows.map((customer, index) => `${customer.FullName}\n`))
-        setBookingQuery(newBookingString)
-        setBookingRoomQuery(newBookingRoomString)
+        // setBookingQuery(newBookingString)
+        // setBookingRoomQuery(newBookingRoomString)
+        setBookingResultQuery(newCreateBookingString)
     }
     return (
         <>
 
             <Button onClick={() => { handleAddBooking() }}>ADD</Button>
             <Row gutter={[16, 16]}>
-                <Col md={12}>
+                {/* <Col md={12}>
                     <Input.TextArea value={bookingQuery} autoSize />
                 </Col>
                 <Col md={12}>
                     <Input.TextArea value={bookingRoomQuery} autoSize />
+                </Col> */}
+                <Col md={24}>
+                    <Input.TextArea value={bookingResultQuery} autoSize />
                 </Col>
             </Row>
         </>

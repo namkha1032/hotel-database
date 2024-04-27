@@ -19,7 +19,8 @@ import {
     DatePicker,
     InputNumber,
     Divider,
-    Collapse
+    Collapse,
+    Statistic
 } from "antd"
 import {
     DownloadOutlined,
@@ -42,7 +43,7 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid' // a plugin!
 import { Line } from '@ant-design/charts';
 import { Liquid, Column, DualAxes } from '@ant-design/plots';
-
+import { apiGetBranch } from "../../apis/hotelApi";
 const RoomCalender = (props) => {
     let statisticsYear = props.statisticsYear
     let statisticsMonth = props.statisticsMonth
@@ -80,10 +81,13 @@ const Page_Hotel_Management = () => {
     let [statisticsYear, setStatisticsYear] = useState('2024')
     let [statisticsMonth, setStatisticsMonth] = useState('06')
     let [branchStatistics, setBranchStatistics] = useState([])
+    let [allBranch, setAllBranch] = useState([])
     let [ratePlot, setRatePlot] = useState([])
     let [averageRate, setAverageRate] = useState(0)
+    let [totalRevenue, setTotalRevenue] = useState(0)
     let [roomCalendar, setRoomCalendar] = useState([])
     let [modeTheme, dispatchModeTheme] = useContext(ModeThemeContext)
+    let antdTheme = theme.useToken()
     console.log("roomCalendar", roomCalendar)
     useEffect(() => {
         async function fetchData() {
@@ -100,6 +104,9 @@ const Page_Hotel_Management = () => {
 
             await handleBranchStatistics(statisticsBranch, statisticsYear)
             await handleRoomCalendar(statisticsBranch, statisticsYear, statisticsMonth)
+            let responseBranch = await apiGetBranch()
+            console.log("responseBranch", responseBranch)
+            setAllBranch(responseBranch.rows)
         }
         fetchData()
     }, [])
@@ -109,9 +116,11 @@ const Page_Hotel_Management = () => {
         let statisticsResponse = await axios.post(`http://localhost:3001/api/hotel/statistics`, { branchID: inputBranch, year: inputYear })
         console.log("statisticsResponse", statisticsResponse.data)
         let newAverage = 0
+        let newRevenue = 0
         let newRatePlot = []
         let copyStatistics = statisticsResponse.data.rows.map((item, index) => {
             newAverage = newAverage + item.occupancy_rate
+            newRevenue = newRevenue + parseInt(item.total_revenue)
             newRatePlot.push({
                 month_text: item.month_text,
                 type: "occupancy_rate",
@@ -128,6 +137,7 @@ const Page_Hotel_Management = () => {
             }
         })
         setAverageRate(parseFloat((newAverage / 12).toFixed(4)))
+        setTotalRevenue(newRevenue)
         setBranchStatistics(copyStatistics)
         setRatePlot(newRatePlot)
     }
@@ -170,11 +180,15 @@ const Page_Hotel_Management = () => {
         // },
         {
             title: "Occupancy rate",
-            render: (obj) => obj.occupancy_rate
+            render: (obj) => `${parseFloat(obj.occupancy_rate * 100).toFixed(2)} %`
         },
         {
             title: "Total revenue",
             render: (obj) => obj.total_revenue
+        },
+        {
+            title: "Total guests",
+            render: (obj) => obj.total_guest
         }
     ]
     let events = [
@@ -218,7 +232,7 @@ const Page_Hotel_Management = () => {
     console.log("branchStatistics", branchStatistics)
     return (
         <>
-            <Typography.Title level={1}>Statistics</Typography.Title>
+            <Typography.Title level={1}>Branch statistics</Typography.Title>
             <Space style={{ marginBottom: 8 }}>
                 <Select
                     defaultValue="BR01"
@@ -231,16 +245,13 @@ const Page_Hotel_Management = () => {
                         setStatisticsBranch(value)
                     }}
                     value={statisticsBranch}
-                    options={[
-                        {
-                            value: 'BR01',
-                            label: 'BR01',
-                        },
-                        {
-                            value: 'BR02',
-                            label: 'BR02',
+                    options={allBranch.map((branch, idx) => {
+                        return {
+                            value: branch.branchid,
+                            label: branch.province
                         }
-                    ]}
+                    })
+                    }
                 />
                 <Select
                     defaultValue="2023"
@@ -267,15 +278,37 @@ const Page_Hotel_Management = () => {
             </Space>
             <br />
             <div style={{ display: "flex", columnGap: 16 }}>
-                <Table
-                    columns={branchStatisticsColumn}
-                    rowKey={(record) => record.month_num}
-                    dataSource={branchStatistics}
-                    pagination={false}
-                    style={{ width: "50%", height: "100%", borderRadius: 16 }}
-                />
                 <div style={{ display: "flex", flexDirection: "column", rowGap: 16, width: "50%" }}>
-                    <Card className="myChart" style={{ flex: 1 }}
+                    <Card className="myChart" style={{ flex: 1, borderColor: antdTheme.token.colorBorder }}
+                    // style={{ height: "50%" }} styles={{ body: { height: "100%", padding: 0 } }}
+                    >
+                        <Row gutter={[16, 16]}>
+                            <Col md={13} style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                                <Row gutter={[16, 16]} justify={"space-between"} style={{ width: "100%", height: "100%", marginLeft: 0 }}>
+                                    <Col md={12} style={{ display: "flex", alignItems: "center" }}>
+                                        <Statistic title="Branch" value={allBranch[parseInt(statisticsBranch[3]) - 1]?.province} />
+                                    </Col>
+                                    <Col md={12} style={{ display: "flex", alignItems: "center" }}>
+                                        <Statistic title="Year" value={statisticsYear} />
+                                    </Col>
+                                    <Col md={12} style={{ display: "flex", alignItems: "center" }}>
+                                        <Statistic title="Occupancy rate" value={averageRate} />
+                                    </Col>
+                                    <Col md={12} style={{ display: "flex", alignItems: "center" }}>
+                                        <Statistic title="Total revenue" value={totalRevenue} />
+                                    </Col>
+                                </Row>
+                            </Col>
+                            <Col md={11} style={{ display: 'flex', flexDirection: "column", alignItems: "center", justifyContent: "space-evenly" }}>
+                                <Liquid height={235} percent={averageRate} />
+                                <div style={{ display: "flex", justifyContent: "center" }}>
+                                    <Typography.Text>Average occupancy rate</Typography.Text>
+                                </div>
+                            </Col>
+                        </Row>
+
+                    </Card>
+                    <Card className="myChart" style={{ flex: 1, borderColor: antdTheme.token.colorBorder }}
                     // style={{ height: "50%" }} styles={{ body: { height: "100%", padding: 0 } }}
                     >
                         {/* <Line point={{
@@ -334,14 +367,23 @@ const Page_Hotel_Management = () => {
                                 },
                             ]} />
                     </Card>
-                    <Card className="myChart" style={{ flex: 1 }}
-                    // style={{ height: "50%" }} styles={{ body: { height: "100%", padding: 0 } }}
-                    >
-                        <Liquid height={235} percent={averageRate} />
-                    </Card>
                 </div>
+                <Card style={{ width: "100%", height: "100%", borderRadius: 16, borderColor: antdTheme.token.colorBorder }} styles={{ body: { padding: 0 } }}>
+                    <Table
+                        bordered
+                        columns={branchStatisticsColumn}
+                        rowKey={(record) => record.month_num}
+                        dataSource={branchStatistics}
+                        pagination={false}
+                        style={{ width: "100%", height: "100%", borderRadius: 8 }}
+                        footer={() => 'Statistics of each month'}
+                    />
+                </Card>
+
             </div>
-            <Space style={{ marginBottom: 8, marginTop: 16 }}>
+
+            <Typography.Title level={1}>Rooms calendar</Typography.Title>
+            <Space style={{ marginBottom: 8 }}>
                 <Select
                     defaultValue="BR01"
                     style={{
@@ -464,6 +506,26 @@ const Page_Hotel_Management = () => {
                         </Col>
                     </Row>,
                     children: <Row gutter={[16, 16]}>
+                        <Col md={6} style={{ display: "flex", justifyContent: "space-evenly", alignItems: "center", flexDirection: "column" }}>
+                            <Row gutter={[0, 16]} style={{ marginRight: "-150px" }}>
+                                <Col md={12}>
+                                    <Statistic title="Room type" value={roomtype.roomname} />
+                                </Col>
+                                <Col md={12}>
+                                    <Statistic title="Occupancy rate" value={`${parseFloat(roomtype.occupancy_rate * 100).toFixed(2)} %`} />
+                                </Col>
+                                <Col md={12}>
+                                    <Statistic title="Branch" value={allBranch[parseInt(statisticsBranch[3]) - 1]?.province} />
+                                </Col>
+                                <Col md={12}>
+                                    <Statistic title="Time" value={`${statisticsYear}/${statisticsMonth}`} />
+                                </Col>
+                            </Row>
+                            <Liquid height={235} percent={parseFloat(roomtype.occupancy_rate.toFixed(4))} />
+                            <Typography.Text style={{ marginTop: "-10px" }}>Average occupancy rate</Typography.Text>
+                        </Col>
+                        {/* <Col md={6}>
+                        </Col> */}
                         {roomtype.rooms.map((room, index2) =>
                             <Col key={index2} md={6}>
                                 <RoomCalender branchid={room.branchid} roomnumber={room.roomnumber} statisticsYear={statisticsYear} statisticsMonth={statisticsMonth} events={room.bookings} />

@@ -4,7 +4,14 @@ import endpoint from "./_domain";
 import { originHeader } from "./_domain";
 export async function userLogin(credential) {
     // await delay(2000)
-    let response = await axios.post(`${endpoint}/api/hotel/login-customer`, credential, {
+    let response = await axios.post(`${endpoint}/api/hotel/login`, credential, {
+        headers: { ...originHeader }
+    })
+    return response.data.rows[0]
+}
+export async function userSignup(credential) {
+    // await delay(2000)
+    let response = await axios.post(`${endpoint}/api/hotel/signup`, credential, {
         headers: { ...originHeader }
     })
     return response.data.rows[0]

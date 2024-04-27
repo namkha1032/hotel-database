@@ -23,6 +23,10 @@
   height: 100% !important;
 }
 
+.mytoast {
+  width: fit-content !important;
+}
+
 
 body {
   margin: 0;

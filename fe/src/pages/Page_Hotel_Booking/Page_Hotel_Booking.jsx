@@ -22,7 +22,8 @@ import {
     Collapse,
     Tabs,
     Tag,
-    Modal
+    Modal,
+    Popconfirm
 } from "antd"
 import {
     DownloadOutlined,
@@ -49,13 +50,15 @@ import { apiGetBooking } from "../../apis/hotelApi";
 import { IoFastFoodOutline } from "react-icons/io5";
 import { GiCoffeeCup } from "react-icons/gi";
 import { FaCoffee } from "react-icons/fa";
-import { apiCheckIn, apiGetFood, apiCheckOut } from "../../apis/hotelApi";
+import { apiCheckIn, apiGetFood, apiCheckOut, apiGetBranch, apiDeleteBooking } from "../../apis/hotelApi";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 const ViewBookingModal = (props) => {
     let item = props.item
     let activeKey = props.activeKey
     let fetchBooking = props.fetchBooking
+    let chosenBranch = props.chosenBranch
+    let allBranch = props.allBranch
     let foodType = props.foodType
     let [modalOpen, setModalOpen] = useState(false)
     let [loading, setLoading] = useState(false)
@@ -79,7 +82,7 @@ const ViewBookingModal = (props) => {
     async function handleCheckIn() {
         setLoading(true)
         let response = await apiCheckIn({ bookingid: item.bookingid })
-        await fetchBooking()
+        await fetchBooking(chosenBranch)
         setLoading(false)
         setModalOpen(false)
         toast.success('Check in successfully!', {
@@ -90,10 +93,19 @@ const ViewBookingModal = (props) => {
         setLoading(true)
         let newBody = {
             bookingid: item.bookingid,
-            roomlist: roomList
+            roomlist: roomList.map((ro, roidx)=>{
+                return{
+                    branchid: ro.branchid,
+                    roomnumber: ro.roomnumber,
+                    inputfoodconsumed: ro.inputfoodconsumed.filter((fo, foidx)=>{
+                        return fo.amount > 0
+                    })
+                }
+            })
         }
         let response = await apiCheckOut(newBody)
-        await fetchBooking()
+        console.log("chosenBranch", chosenBranch)
+        await fetchBooking(chosenBranch)
         setLoading(false)
         setModalOpen(false)
         toast.success('Check out successfully!', {
@@ -122,6 +134,22 @@ const ViewBookingModal = (props) => {
                 }
             }
         }))
+    }
+    async function handleDeleteBooking() {
+        try {
+            setLoading(true)
+            let response = await apiDeleteBooking({ bookingid: item.bookingid })
+            await fetchBooking(chosenBranch)
+            toast.success('Booking cancel successfully!', {
+                theme: "colored"
+            });
+            setLoading(false)
+        }
+        catch (e) {
+            toast.error('Booking cancel failed!', {
+                theme: "colored"
+            });
+        }
     }
     return (
         <>
@@ -152,6 +180,13 @@ const ViewBookingModal = (props) => {
                     </Col>
                     <Col md={spanValue}>
                         <Input readOnly value={new Date(item.checkout).toLocaleDateString()} />
+                    </Col>
+                    <Col md={spanKey} style={{ display: "flex", alignItems: "center" }}>
+                        <Typography.Text>Branch</Typography.Text>
+                    </Col>
+
+                    <Col md={spanValue}>
+                        <Input readOnly value={allBranch[parseInt(chosenBranch[3]) - 1].province} />
                     </Col>
                     {activeKey == 0 ?
                         null :
@@ -200,7 +235,7 @@ const ViewBookingModal = (props) => {
                                     items={[{
                                         key: '1',
                                         label: <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <Typography.Text>{bkroom.roomnumber}</Typography.Text>
+                                            <Typography.Text>{bkroom.branchid}.{bkroom.roomnumber}</Typography.Text>
                                             {activeKey == 2 ?
                                                 <div style={{ display: "flex", alignItems: "center", columnGap: 8 }}>
                                                     <FaCoffee />
@@ -279,19 +314,36 @@ const ViewBookingModal = (props) => {
                 </div>
 
             </Modal>
-            <Tag style={{ cursor: "pointer" }} color={activeKey == 0 ? "volcano" : activeKey == 1 ? "blue" : "green"} onClick={() => { setModalOpen(true) }}>
-                {activeKey == 0 ? "Upcoming" : activeKey == 1 ? "Occupying" : "Checked out"}
-            </Tag>
+            <Space>
+                <Tag style={{ cursor: "pointer" }} color={activeKey == 0 ? "volcano" : activeKey == 1 ? "blue" : "green"} onClick={() => { setModalOpen(true) }}>
+                    {activeKey == 0 ? "Upcoming" : activeKey == 1 ? "Occupying" : "Checked out"}
+                </Tag>
+                {activeKey == '0' ?
+                    <Popconfirm
+                        title="Cancel this booking"
+                        description="Are you sure to cancel this booking?"
+                        onConfirm={() => { handleDeleteBooking() }}
+                        okText="Yes"
+                        cancelText="No"
+                        okButtonProps={{
+                            loading: loading,
+                        }}
+                    >
+                        <Button shape="circle" danger type="text" icon={<DeleteOutlined />} />
+                    </Popconfirm> : null}
+            </Space>
         </>
     )
 }
 
 const TableBooking = (props) => {
     let activeKey = props.activeKey
+    let chosenBranch = props.chosenBranch
     let bookingList = props.bookingList
     let setBookings = props.setBookings
     let fetchBooking = props.fetchBooking
     let foodType = props.foodType
+    let allBranch = props.allBranch
     let bookingColumn = [
         {
             title: "Booking ID",
@@ -329,7 +381,7 @@ const TableBooking = (props) => {
         {
             title: "Status",
             render: (obj) => <>
-                <ViewBookingModal foodType={foodType} item={obj} activeKey={activeKey} fetchBooking={fetchBooking} />
+                <ViewBookingModal allBranch={allBranch} chosenBranch={chosenBranch} foodType={foodType} item={obj} activeKey={activeKey} fetchBooking={fetchBooking} />
             </>
         },
     ]
@@ -347,100 +399,54 @@ const TableBooking = (props) => {
 }
 
 const Page_Hotel_Booking = () => {
-    let [statisticsBranch, setStatisticsBranch] = useState('BR01')
-    let [statisticsYear, setStatisticsYear] = useState('2024')
-    let [statisticsMonth, setStatisticsMonth] = useState('06')
-    let [branchStatistics, setBranchStatistics] = useState([])
-    let [ratePlot, setRatePlot] = useState([])
-    let [averageRate, setAverageRate] = useState(0)
-    let [roomCalendar, setRoomCalendar] = useState([])
+    let [chosenBranch, setChosenBranch] = useState('BR01')
+    let [allBranch, setAllBranch] = useState([])
     let [modeTheme, dispatchModeTheme] = useContext(ModeThemeContext)
     let [bookings, setBookings] = useState(null)
     let [foodType, setFoodType] = useState([])
     console.log("bookings: ", bookings)
     useEffect(() => {
-        fetchBooking()
+        async function fetchBranch() {
+            let responseBranch = await apiGetBranch()
+            console.log("responseBranch", responseBranch)
+            setAllBranch(responseBranch.rows)
+        }
+        fetchBooking(chosenBranch)
+        fetchBranch()
     }, [])
-    async function fetchBooking() {
-        let first = await apiGetBooking({ checkinnull: "NULL", checkoutnull: "NULL" })
-        let second = await apiGetBooking({ checkinnull: "NOT NULL", checkoutnull: "NULL" })
-        let third = await apiGetBooking({ checkinnull: "NOT NULL", checkoutnull: "NOT NULL" })
+    async function fetchBooking(inputBranch) {
+        let first = await apiGetBooking({ branchid: inputBranch, checkinnull: "NULL", checkoutnull: "NULL" })
+        let second = await apiGetBooking({ branchid: inputBranch, checkinnull: "NOT NULL", checkoutnull: "NULL" })
+        let third = await apiGetBooking({ branchid: inputBranch, checkinnull: "NOT NULL", checkoutnull: "NOT NULL" })
         let foodResponse = await apiGetFood()
         setBookings({ first: first.rows, second: second.rows, third: third.rows })
         setFoodType(foodResponse.rows)
     }
-    async function handleBranchStatistics(inputBranch, inputYear) {
-        // console.log("inputBranch", inputBranch)
-        // console.log("inputYear", inputYear)
-        let statisticsResponse = await axios.post(`http://localhost:3001/api/hotel/statistics`, { branchID: inputBranch, year: inputYear })
-        let newAverage = 0
-        let newRatePlot = []
-        let copyStatistics = statisticsResponse.data.rows.map((item, index) => {
-            newAverage = newAverage + item.occupancy_rate
-            newRatePlot.push({
-                month_text: item.month_text,
-                type: "occupancy_rate",
-                value: item.occupancy_rate
-            })
-            newRatePlot.push({
-                month_text: item.month_text,
-                type: "vacancy_rate",
-                value: 1 - item.occupancy_rate
-            })
-            return {
-                ...item,
-                total_revenue: parseInt(item.total_revenue)
-            }
-        })
-        setAverageRate(parseFloat((newAverage / 12).toFixed(4)))
-        setBranchStatistics(copyStatistics)
-        setRatePlot(newRatePlot)
-    }
-    async function handleRoomCalendar(inputBranch, inputYear, inputMonth) {
-        let roomCalendarRaw = await axios.post(`http://localhost:3001/api/hotel/getroomcalendar`, {
-            branchid: inputBranch,
-            inputyear: inputYear,
-            inputmonth: inputMonth
-        })
-        setRoomCalendar(roomCalendarRaw.data.rows)
-    }
-    let branchStatisticsColumn = [
-        {
-            title: "Month",
-            render: (obj) => obj.month_num
-        },
-        // {
-        //     title: "Count room",
-        //     render: (obj) => obj.count_room
-        // },
-        // {
-        //     title: "Count slot",
-        //     render: (obj) => obj.count_slot
-        // },
-        // {
-        //     title: "Total slot",
-        //     render: (obj) => obj.total_slot
-        // },
-        // {
-        //     title: "Rental revenue",
-        //     render: (obj) => obj.rental_revenue
-        // },
-        // {
-        //     title: "Food revenue",
-        //     render: (obj) => obj.food_revenue
-        // },
-        {
-            title: "Occupancy rate",
-            render: (obj) => obj.occupancy_rate
-        },
-        {
-            title: "Total revenue",
-            render: (obj) => obj.total_revenue
-        }
-    ]
     return (
         <>
             <ToastContainer />
+            <Typography.Title level={1}>All bookings</Typography.Title>
+            <Space style={{ marginBottom: 16 }}>
+                <Typography.Text>Branch:</Typography.Text>
+                <Select
+                    defaultValue="BR01"
+                    style={{
+                        width: 120,
+                    }}
+                    value={chosenBranch}
+                    onChange={(value) => {
+                        setChosenBranch(value)
+                        fetchBooking(value)
+                    }}
+                    options={allBranch.map((branch, idx) => {
+                        return {
+                            value: branch.branchid,
+                            label: branch.province
+                        }
+                    })
+                    }
+                />
+            </Space>
             <Tabs
                 defaultActiveKey={0}
                 type="card"
@@ -449,17 +455,17 @@ const Page_Hotel_Booking = () => {
                     {
                         label: `Upcoming`,
                         key: 0,
-                        children: <TableBooking foodType={foodType} activeKey={0} bookingList={bookings?.first} setBookings={setBookings} fetchBooking={fetchBooking} />,
+                        children: <TableBooking allBranch={allBranch} chosenBranch={chosenBranch} foodType={foodType} activeKey={0} bookingList={bookings?.first} setBookings={setBookings} fetchBooking={fetchBooking} />,
                     },
                     {
                         label: `Occupying`,
                         key: 1,
-                        children: <TableBooking foodType={foodType} activeKey={1} bookingList={bookings?.second} setBookings={setBookings} fetchBooking={fetchBooking} />,
+                        children: <TableBooking allBranch={allBranch} chosenBranch={chosenBranch} foodType={foodType} activeKey={1} bookingList={bookings?.second} setBookings={setBookings} fetchBooking={fetchBooking} />,
                     },
                     {
                         label: `Checked out`,
                         key: 2,
-                        children: <TableBooking foodType={foodType} activeKey={2} bookingList={bookings?.third} setBookings={setBookings} fetchBooking={fetchBooking} />,
+                        children: <TableBooking allBranch={allBranch} chosenBranch={chosenBranch} foodType={foodType} activeKey={2} bookingList={bookings?.third} setBookings={setBookings} fetchBooking={fetchBooking} />,
                     }
                 ]}
             />

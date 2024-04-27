@@ -68,13 +68,15 @@ const NavBar = () => {
     // logics
     let [modeTheme, dispatchModeTheme] = useContext(ModeThemeContext)
     let [user, dispatchUser] = useContext(UserContext)
+    let primaryBgColor = modeTheme == "light" ? antdTheme.token.colorBgElevated : antdTheme.token.colorBgLayout
+    let secondaryBgColor = modeTheme == "light" ? antdTheme.token.colorBgLayout : antdTheme.token.colorBgElevated
     // HTMl
     return (
         <Layout.Header
             style={{
                 paddingRight: `${antdTheme.token.paddingContentHorizontal}px`,
                 paddingLeft: 0,
-                background: antdTheme.token.colorBgContainer
+                background: secondaryBgColor
             }
             }
         >

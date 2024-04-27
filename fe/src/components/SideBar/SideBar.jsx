@@ -61,6 +61,8 @@ const SideBar = (props) => {
     const location = useLocation()
     const navigate = useNavigate()
     let [sidebarItem, setSidebarItem] = useState("0")
+    let primaryBgColor = modeTheme == "light" ? antdTheme.token.colorBgElevated : antdTheme.token.colorBgLayout
+    let secondaryBgColor = modeTheme == "light" ? antdTheme.token.colorBgLayout : antdTheme.token.colorBgElevated
 
     useEffect(() => {
         // if (location) {
@@ -87,14 +89,14 @@ const SideBar = (props) => {
     return (
         <Sider
             style={{
-                background: antdTheme.token.colorBgContainer
+                background: secondaryBgColor
             }}
             width="13%"
             collapsible collapsed={collapsed}
             trigger={
                 <Flex
                     justify="center" align="center"
-                    style={{ width: "100%", height: "100%", backgroundColor: antdTheme.token.colorBgContainer }}>
+                    style={{ width: "100%", height: "100%", backgroundColor: secondaryBgColor }}>
                     <Button
                         style={{ width: "100%", margin: antdTheme.token.marginXXS, backgroundColor: antdTheme.token.colorPrimaryBg, transition: "backgroundColor 0.215s" }}
                         type={modeTheme == "dark" ? "primary" : "default"}
@@ -130,7 +132,7 @@ const SideBar = (props) => {
             <Menu theme={modeTheme}
                 style={{
                     border: 0,
-                    background: antdTheme.token.colorBgContainer,
+                    background: secondaryBgColor,
                     padding: "0 8px"
                 }}
                 selectedKeys={[sidebarItem]}

@@ -21,6 +21,9 @@ import Page_Hotel_Customer from './pages/Page_Hotel_Customer/Page_Hotel_Customer
 import Page_Hotel_Add_Data from './pages/Page_Hotel_Add_Data/Page_Hotel_Add_Data';
 import Page_Login from './pages/Page_Login/Page_Login';
 import Page_Hotel_Booking from './pages/Page_Hotel_Booking/Page_Hotel_Booking';
+import Page_Hotel_Test from './pages/Page_Hotel_Test/Page_Hotel_Test';
+import Page_Login_Guest from './pages/Page_Login_Guest/Page_Login_Guest';
+import Page_Signup from './pages/Page_Signup/Page_Signup';
 // import Page_Login
 
 
@@ -45,8 +48,12 @@ const App = () => {
           element: <Page_Hotel_Booking />,
         },
         {
-          path: "hotel-add-data",
+          path: "hotel-adddata",
           element: <Page_Hotel_Add_Data />,
+        },
+        {
+          path: "hotel-test",
+          element: <Page_Hotel_Test />,
         }
       ]
     },
@@ -55,8 +62,12 @@ const App = () => {
       element: <Page_Login />
     },
     {
-      path: '/login',
-      element: <Page_Login />
+      path: '/login-guest',
+      element: <Page_Login_Guest />
+    },
+    {
+      path: '/signup',
+      element: <Page_Signup />
     }
   ]);
   return (

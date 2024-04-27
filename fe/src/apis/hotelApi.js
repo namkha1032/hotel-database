@@ -5,6 +5,7 @@ import { originHeader } from "./_domain";
 
 export async function apiCreateBooking(body) {
     let response = await axios.post(`${endpoint}/api/hotel/createbooking`, body)
+    console.log("apiCreateBooking", response)
     return response.data
 }
 
@@ -30,5 +31,11 @@ export async function apiGetFood() {
 
 export async function apiGetBranch() {
     let response = await axios.get(`${endpoint}/api/hotel/branch`)
+    return response.data
+}
+
+export async function apiDeleteBooking(body) {
+    let response = await axios.post(`${endpoint}/api/hotel/deletebooking`, body)
+    console.log("response", response)
     return response.data
 }

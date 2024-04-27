@@ -17,40 +17,37 @@ import { userLogin, getMe } from "../../apis/userApi";
 import { useState, useEffect, useContext } from "react";
 import UserContext from "../../context/UserContext";
 import { useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 const Page_Login = () => {
     let [loadingLogin, setLoadingLogin] = useState(false)
     let [user, dispatchUser] = useContext(UserContext)
-    let [loginType, setLoginType] = useState(true)
     const antdTheme = theme.useToken()
     let loginColor = antdTheme.token.colorFill
     const navigate = useNavigate()
     async function handleLogin(values) {
         setLoadingLogin(true)
         try {
-            if (loginType) {
-                if (values.username == "smanager" && values.password == "postgres") {
-                    dispatchUser({
-                        type: "login", payload: {
-                            username: "smanager",
-                            fullname: "sManager",
-                            admin: true
-                        }
-                    })
-                    navigate(`/hotel-management`)
-                }
-                else {
-                    throw "wrong password"
-                }
+            if (values.username == "smanager" && values.password == "postgres") {
+                dispatchUser({
+                    type: "login", payload: {
+                        username: "smanager",
+                        fullname: "sManager",
+                        admin: true
+                    }
+                })
+                navigate(`/hotel-management`)
             }
             else {
-                let response = await userLogin(values)
-                console.log("login", response)
-                dispatchUser({ type: "login", payload: response })
-                navigate(`/hotel-customer`)
+                throw "invalid username or password"
             }
         }
         catch (e) {
             console.log("error is: ", e)
+            toast.error(e, {
+                theme: "colored",
+                autoClose: 3000
+            });
         }
         setLoadingLogin(false)
     };
@@ -66,6 +63,7 @@ const Page_Login = () => {
             justifyContent: "center",
             alignItems: "center"
         }}>
+            <ToastContainer className={"mytoast"} />
             <Card style={{
                 width: "25%",
                 boxShadow: "0px 0px 20px 1px",
@@ -79,7 +77,7 @@ const Page_Login = () => {
                     marginTop: 0,
                     textAlign: "center"
                 }}>
-                    Login as {loginType ? "admin" : "guest"}
+                    Login as admin
                 </Typography.Title>
                 <Form
                     name="normal_login"
@@ -122,7 +120,7 @@ const Page_Login = () => {
                         </Button>
                     </Form.Item>
                     <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        <Button type="text" onClick={() => { setLoginType(!loginType) }}>Login as {loginType ? "guest" : "admin"}</Button>
+                        <Button type="text" onClick={() => { navigate("/login-guest") }}>Login as guest</Button>
                     </div>
                 </Form>
             </Card>

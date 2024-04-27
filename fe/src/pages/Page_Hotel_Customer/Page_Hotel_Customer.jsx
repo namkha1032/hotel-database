@@ -20,7 +20,8 @@ import {
     InputNumber,
     Divider,
     Modal,
-    Carousel
+    Carousel,
+    Statistic
 } from "antd"
 import {
     DownloadOutlined,
@@ -55,30 +56,104 @@ const CardNormal = (props) => {
     let [normalOpen, setNormalOpen] = useState(false)
     const antdTheme = theme.useToken()
     async function handleCreateBooking() {
-        let userStorage = JSON.parse(localStorage.getItem("user"))
-        let newBody = {
-            guestcount: guestNum,
-            checkin: dayRange[0].format('YYYY-MM-DD'),
-            checkout: dayRange[1].format('YYYY-MM-DD'),
-            customerid: userStorage.customerid,
-            booking_rooms: item.vacant_rooms.slice(0, roomNum)
+        try {
+            let userStorage = JSON.parse(localStorage.getItem("user"))
+            let newBody = {
+                guestcount: guestNum,
+                checkin: dayRange[0].format('YYYY-MM-DD'),
+                checkout: dayRange[1].format('YYYY-MM-DD'),
+                customerid: userStorage.customerid,
+                booking_rooms: item.vacant_rooms.slice(0, roomNum)
+            }
+            let response = await apiCreateBooking(newBody)
+            console.log("new booking: ", newBody)
+            setNormalOpen(false)
+            handleFindRoom()
+            toast.success('Booking successfully!', {
+                theme: "colored"
+            });
         }
-        let response = await apiCreateBooking(newBody)
-        console.log("new booking: ", newBody)
-        setNormalOpen(false)
-        handleFindRoom()
-        toast.success('Booking successfully!', {
-            theme: "colored"
-        });
+        catch (e) {
+            console.log("error: ", e)
+            let strings = e.response.data.split("\n")
+            console.log(strings)
+            toast.error(<>
+                {strings.map((str, idx9) => <div key={idx9} style={{ width: 400 }}>
+                    <Typography.Text>{str}</Typography.Text>
+                </div>)}
+            </>, {
+                theme: "colored",
+                autoClose: 60000
+            });
+        }
     }
+    let keySize = 10
+    let colonSize = 1
+    let valueSize = 13
     return (
         <>
             <Modal footer={null} style={{ top: 100 }} title={item.roomname} open={normalOpen} maskClosable={true} onCancel={() => { setNormalOpen(false) }}>
                 <Carousel autoplay autoplaySpeed={3000}>
                     {item.images.map((img, index) => <Image key={index} src={img.image} width={500} height={300} />)}
                 </Carousel>
+                <Row gutter={[16, 8]} style={{ marginTop: 16 }}>
+                    <Col md={keySize}>
+                        <Typography.Text>Room type</Typography.Text>
+                    </Col>
+                    <Col md={colonSize}>
+                        <Typography.Text>:</Typography.Text>
+                    </Col>
+                    <Col md={valueSize}>
+                        <Typography.Text>{item.roomname}</Typography.Text>
+                    </Col>
+                    <Col md={keySize}>
+                        <Typography.Text>Maximum number of guests</Typography.Text>
+                    </Col>
+                    <Col md={colonSize}>
+                        <Typography.Text>:</Typography.Text>
+                    </Col>
+                    <Col md={valueSize}>
+                        <Typography.Text>{item.guestnum}</Typography.Text>
+                    </Col>
+                    <Col md={keySize}>
+                        <Typography.Text>Number of available rooms</Typography.Text>
+                    </Col>
+                    <Col md={colonSize}>
+                        <Typography.Text>:</Typography.Text>
+                    </Col>
+                    <Col md={valueSize}>
+                        <Typography.Text>{item.room_count}</Typography.Text>
+                    </Col>
+                    <Col md={keySize}>
+                        <Typography.Text>Number of single bed</Typography.Text>
+                    </Col>
+                    <Col md={colonSize}>
+                        <Typography.Text>:</Typography.Text>
+                    </Col>
+                    <Col md={valueSize}>
+                        <Typography.Text>{item.singlebednum}</Typography.Text>
+                    </Col>
+                    <Col md={keySize}>
+                        <Typography.Text>Number of  double bed</Typography.Text>
+                    </Col>
+                    <Col md={colonSize}>
+                        <Typography.Text>:</Typography.Text>
+                    </Col>
+                    <Col md={valueSize}>
+                        <Typography.Text>{item.doublebednum}</Typography.Text>
+                    </Col>
+                </Row>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <Button type="primary" onClick={() => { handleCreateBooking() }}>Pay</Button>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", rowGap: 8 }}>
+                        <Typography.Title level={3} style={{ margin: 0 }}>
+                            {item.total_price} $
+                        </Typography.Title>
+                        <Typography.Text level={3} style={{ margin: 0 }}>
+                            {roomNum} rooms × {item.day_count} days
+                        </Typography.Text>
+                        <Button icon={<CheckOutlined />} style={{ width: 100 }} type="primary" onClick={() => { handleCreateBooking() }}>Pay</Button>
+
+                    </div>
                 </div>
             </Modal>
             <Card style={{ borderColor: antdTheme.token.colorBorder }} styles={{ body: { padding: 16 } }}>
@@ -90,14 +165,18 @@ const CardNormal = (props) => {
                                 {item.roomname}
                             </Typography.Title>
                             <Typography.Text>
-                                Room count: {item.room_count}
+                                Max guests: {item.guestnum}
                             </Typography.Text>
                             <br />
                             <Typography.Text>
-                                Total price: {item.total_price}
+                                Available rooms: {item.room_count}
                             </Typography.Text>
                             <br />
                             <Typography.Text>
+                                Description: {item.description}
+                            </Typography.Text>
+                            <br />
+                            {/* <Typography.Text>
                                 Vacant rooms:{` `}
                             </Typography.Text>
                             {item?.vacant_rooms?.map((itemRoom, index) => {
@@ -105,7 +184,7 @@ const CardNormal = (props) => {
                                     {itemRoom.roomnumber}{` - `}
                                 </Typography.Text>
                             }
-                            )}
+                            )} */}
                         </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", rowGap: 8 }}>
@@ -129,7 +208,7 @@ const Page_Hotel_Customer = () => {
     let [chosenBranch, setChosenBranch] = useState("BR01")
     let [allBranch, setAllBranch] = useState([])
     let [dayRange, setDayRange] = useState([null, null])
-    let [findRoomResult, setFindRoomResult] = useState([])
+    let [findRoomResult, setFindRoomResult] = useState(null)
     const antdTheme = theme.useToken()
     console.log("findRoomResult", findRoomResult)
     async function handleFindRoom() {
@@ -155,15 +234,12 @@ const Page_Hotel_Customer = () => {
     }, [])
     return (
         <>
-            <ToastContainer />
+            <ToastContainer className={"mytoast"} />
             <Container>
                 <Carousel autoplay autoplaySpeed={3000} style={{ width: "100%" }}>
-                    {chosenBranch == "BR01" ?
-                        allBranch[0]?.images?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)
-                        : allBranch[1]?.images?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)
-                    }
+                    {allBranch[parseInt(chosenBranch[3]) - 1]?.images?.map((img, index) => <Image key={index} src={img.image} width={"100%"} height={300} />)}
                 </Carousel>
-                <Typography.Title level={1}>Guest page - finding vacant rooms</Typography.Title>
+                <Typography.Title level={1}>Finding rooms suitable for your demand</Typography.Title>
                 <Space align="end" size="large">
                     <div style={{ display: "flex", flexDirection: "column", rowGap: 8 }}>
                         <Typography.Text>Branch:</Typography.Text>
@@ -176,16 +252,13 @@ const Page_Hotel_Customer = () => {
                             onChange={(value) => {
                                 setChosenBranch(value)
                             }}
-                            options={[
-                                {
-                                    value: 'BR01',
-                                    label: 'Phan Thiet',
-                                },
-                                {
-                                    value: 'BR02',
-                                    label: 'Nha Trang',
+                            options={allBranch.map((branch, idx) => {
+                                return {
+                                    value: branch.branchid,
+                                    label: branch.province
                                 }
-                            ]}
+                            })
+                            }
                         />
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", rowGap: 8 }}>
@@ -210,10 +283,12 @@ const Page_Hotel_Customer = () => {
                     </div>
                     <Button type="primary" onClick={() => { handleFindRoom() }}>Find</Button>
                 </Space>
-
-                {findRoomResult.length > 0 ? <div style={{ display: "flex", flexDirection: "column", rowGap: 16 }}>
+                <div style={{ marginTop: 16 }}>
+                    <Typography.Text>Address: {allBranch[parseInt(chosenBranch[3]) - 1]?.address}</Typography.Text>
+                </div>
+                {findRoomResult ? <div style={{ display: "flex", flexDirection: "column", rowGap: 16 }}>
                     <Typography.Title style={{ marginTop: 16, marginBottom: 0 }} level={2}>Results:</Typography.Title>
-                    {findRoomResult[0]?.rows?.map((item, index) =>
+                    {findRoomResult?.rows?.map((item, index) =>
                         <div key={index}>
                             <CardNormal item={item} roomNum={roomNum} guestNum={guestNum}
                                 dayRange={dayRange} chosenBranch={chosenBranch} handleFindRoom={handleFindRoom} />
